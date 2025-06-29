@@ -1,32 +1,34 @@
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# Logs
+logs
+*.log
+npm-debug.log*
 
-# Precompiled Headers
-*.gch
-*.pch
+# Dependency directories
+node_modules
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Build generated files
+dist
+lib
+release
+solution
+temp
+*.sppkg
+.heft
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# Coverage directory used by tools like istanbul
+coverage
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+# OSX
+.DS_Store
 
-# Debug files
-*.dSYM/
+# Visual Studio files
+.ntvs_analysis.dat
+.vs
+bin
+obj
+
+# Resx Generated Code
+*.resx.ts
+
+# Styles Generated Code
+*.scss.ts

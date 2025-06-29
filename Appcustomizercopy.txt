@@ -1,0 +1,103 @@
+import { override } from '@microsoft/decorators';
+import { Log } from '@microsoft/sp-core-library';
+import {
+  BaseApplicationCustomizer
+} from '@microsoft/sp-application-base';
+
+import { spfi, SPFx } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/site-users/web";
+import "@pnp/sp/site-groups/web";
+
+const LOG_SOURCE: string = 'ViewPermissionCustomizerApplicationCustomizer';
+
+export interface IViewPermissionCustomizerProperties { }
+
+export default class ViewPermissionCustomizerApplicationCustomizer
+  extends BaseApplicationCustomizer<IViewPermissionCustomizerProperties> {
+
+  @override
+  public async onInit(): Promise<void> {
+    Log.info(LOG_SOURCE, `Initialized ViewPermissionCustomizerApplicationCustomizer`);
+
+    const sp = spfi().using(SPFx(this.context));
+    const currentUser = await sp.web.currentUser();
+    const groups = await sp.web.currentUser.groups();
+    const userGroupNames = groups.map(g => g.Title);
+
+    console.log(`User: ${currentUser.Title}`);
+    console.log(`Groups: ${userGroupNames.join(", ")}`);
+
+    // Simulated config (you can replace with SharePoint List config later)
+    const viewPermissions = {
+      "All Items": ["Site Owners"],
+      "ConfidentialView": ["Communications Members", "Site Owners"],
+      "MarketingView": ["Miriam Graham"]
+      //"MarketingView": ["Contoso marketing Members", "Site Owners"]
+    };
+
+    for (const [viewName, allowedGroups] of Object.entries(viewPermissions)) {
+      const hasPermission = allowedGroups.some((group: string) => userGroupNames.includes(group));
+      console.log(`Checking view "${viewName}": permission = ${hasPermission}`);
+
+      if (!hasPermission) {
+        this.hideViewLink(viewName);
+      }
+    }
+
+    return Promise.resolve();
+  }
+
+  private hideViewLink(viewName: string): void {
+  console.log(`🔍 Waiting for view "${viewName}" to appear...`);
+
+  const observer = new MutationObserver(() => {
+    const links = Array.from(document.querySelectorAll('a[role="menuitem"]'));
+
+    for (const link of links) {
+      if (link.textContent?.trim() === viewName) {
+        console.log(`❌ Hiding view: "${viewName}"`);
+        (link as HTMLElement).style.display = "none";
+        observer.disconnect();
+      }
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // Auto stop after 10 seconds if not found
+  setTimeout(() => observer.disconnect(), 10000);
+}
+
+
+
+ /*
+  private hideViewLink(viewName: string): void {
+    console.log(`Attempting to hide view link: "${viewName}"`);
+
+    const interval = setInterval(() => {
+      // Target view links in list command bar (modern UI)
+      const viewDropdownLinks = document.querySelectorAll<HTMLAnchorElement>(
+        "button[aria-label^='View options'], div[role='menu'] a[role='menuitem']"
+      );
+
+      viewDropdownLinks.forEach(link => {
+        if (link.textContent?.trim() === viewName) {
+          console.log(`Hiding view link: "${viewName}"`);
+          link.style.display = "none";
+          clearInterval(interval);
+        }
+      });
+    }, 500);
+
+    // stop after 5 sec if nothing found
+    setTimeout(() => clearInterval(interval), 5000);
+  }
+  */
+
+
+
+}

@@ -1,0 +1,13 @@
+// Define the tab names you're interested in
+const targetTabNames = ["All Items", "ConfidentialView", "MarketingView"];
+
+// Select all tab buttons with role="tab"
+const tabButtons = document.querySelectorAll('button[role="tab"]');
+
+// Filter for currently selected tabs and match against your list
+const matchingCurrentTabs = Array.from(tabButtons)
+  .filter(btn => btn.getAttribute("aria-selected") === "true")
+  .map(btn => btn.textContent.trim())
+  .filter(name => targetTabNames.includes(name));
+
+console.log("Matching current tabs:", matchingCurrentTabs);

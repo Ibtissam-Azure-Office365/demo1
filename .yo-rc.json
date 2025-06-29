@@ -1,0 +1,19 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.16.0",
+    "sdksVersions": {},
+    "version": "1.21.1",
+    "libraryName": "2-esdc-sp-fx-extension",
+    "libraryId": "f636f1bd-ecd0-42e7-97d5-d53806fd1e42",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "2-esdc-sp-fx-extension",
+    "solutionShortDescription": "2-esdc-sp-fx-extension description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "extension",
+    "extensionType": "ApplicationCustomizer"
+  }
+}

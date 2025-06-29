@@ -1,0 +1,197 @@
+import { override } from '@microsoft/decorators';
+import { Log } from '@microsoft/sp-core-library';
+import {
+  BaseApplicationCustomizer
+} from '@microsoft/sp-application-base';
+
+import { spfi, SPFx } from "@pnp/sp";
+import "@pnp/sp/webs";
+import "@pnp/sp/site-users/web";
+import "@pnp/sp/site-groups/web";
+import "@pnp/sp/lists";
+import "@pnp/sp/items";
+
+interface ConfigItem {
+  Title: string;
+  ListName: string;
+  ViewName: string;
+  Action: string;
+  Member: {
+    Title: string;
+  };
+}
+
+
+const LOG_SOURCE: string = 'ViewPermissionCustomizerApplicationCustomizer';
+
+export interface IViewPermissionCustomizerProperties {}
+
+export default class ViewPermissionCustomizerApplicationCustomizer
+  extends BaseApplicationCustomizer<IViewPermissionCustomizerProperties> {
+
+  @override
+  public async onInit(): Promise<void> {
+    Log.info(LOG_SOURCE, `Initialized ViewPermissionCustomizerApplicationCustomizer`);
+
+    // 🔄 Add spinner
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = "view-permission-loading";
+    loadingDiv.innerText = "🔄 Checking your view permissions...";
+    loadingDiv.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #0078D4;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      z-index: 9999;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    `;
+    document.body.appendChild(loadingDiv);
+
+    const sp = spfi().using(SPFx(this.context));
+    const currentUser = await sp.web.currentUser();
+    const userGroups = await sp.web.currentUser.groups();
+    const userGroupNames = userGroups.map(g => g.Title);
+
+    console.log(`👤 Current User: ${currentUser.Title}`);
+    console.log(`👥 User Groups: ${userGroupNames.join(', ')}`);
+
+    let configItems: ConfigItem[] = [];
+
+    try {
+   
+       configItems = await sp.web.lists
+  .getByTitle("ConfigList")
+  .items.select("Title", "ListName", "Member/Title", "Action", "ViewName")
+  .expand("Member")
+  .top(4999)();
+
+
+
+    } catch (error) {
+      console.error("❌ Error fetching ConfigList:", error);
+      const spinner = document.getElementById("view-permission-loading");
+      if (spinner) spinner.remove();
+      return;
+    }
+
+    if (!configItems.length) {
+      console.warn("⚠️ No config items found.");
+      const spinner = document.getElementById("view-permission-loading");
+      if (spinner) spinner.remove();
+      return;
+    }
+
+    const viewPermissions: {
+      [view: string]: { show: string[], hide: string[] }
+    } = {};
+
+    for (const item of configItems) {
+      const view = item.ViewName?.trim();
+      const member = item.Member?.Title?.trim();
+      const action = item.Action?.trim().toLowerCase();
+      if (!view || !member || !action) continue;
+
+      viewPermissions[view] ??= { show: [], hide: [] };
+      if (action === "show") viewPermissions[view].show.push(member);
+      else if (action === "hide") viewPermissions[view].hide.push(member);
+    }
+
+    console.log("🔐 View Permissions Loaded:", viewPermissions);
+
+    const visibleViews: string[] = [];
+    const hiddenViews: string[] = [];
+
+    for (const [viewName, rules] of Object.entries(viewPermissions)) {
+      const isHidden = rules.hide.some(m =>
+        userGroupNames.includes(m) || currentUser.Title === m
+      );
+
+      const isShown = rules.show.some(m =>
+        userGroupNames.includes(m) || currentUser.Title === m
+      );
+
+      if (isHidden || (!isShown && rules.show.length > 0)) {
+        hiddenViews.push(viewName);
+        this.hideViewLink(viewName);
+      } else {
+        visibleViews.push(viewName);
+      }
+    }
+
+    // ✅ Summary
+    console.log(`🟢 Views you can see:`, visibleViews);
+    console.log(`🔴 Views hidden from you:`, hiddenViews);
+
+    // 🧹 Remove spinner
+    const spinner = document.getElementById("view-permission-loading");
+    if (spinner) spinner.remove();
+
+    return Promise.resolve();
+  }
+
+private hideViewLink(viewName: string): void {
+  console.log(`🔍 Waiting for view "${viewName}" to appear...`);
+
+  const observer = new MutationObserver(() => {
+    const buttons = document.querySelectorAll('button[data-view-name]');
+    let found = false;
+
+    buttons.forEach(button => {
+      const viewAttr = button.getAttribute("data-view-name")?.trim();
+      if (viewAttr === viewName) {
+        console.log(`🚫 Hiding view "${viewName}" via [data-view-name] selector.`);
+        (button as HTMLElement).style.display = "none";
+        found = true;
+      }
+    });
+
+    if (found) {
+      observer.disconnect();
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // Safety timeout
+  setTimeout(() => observer.disconnect(), 10000);
+}
+
+
+
+  /*
+  private hideViewLink(viewName: string): void {
+    console.log(`⏳ Waiting to hide view: "${viewName}"`);
+
+    const observer = new MutationObserver(() => {
+      const selectors = [
+        'a[role="menuitem"]',
+        'button[role="menuitem"]',
+        'div[role="menuitem"]',
+        'div.ms-ContextualMenu-link',
+        `li button[aria-label="${viewName}"]`
+      ];
+
+      for (const selector of selectors) {
+        const match = Array.from(document.querySelectorAll<HTMLElement>(selector))
+          .find(el => el.textContent?.trim() === viewName);
+        if (match) {
+          match.style.display = "none";
+          console.log(`🚫 Hiding view: "${viewName}"`);
+          observer.disconnect();
+          break;
+        }
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => observer.disconnect(), 10000);
+  }
+  */
+}
